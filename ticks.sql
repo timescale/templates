@@ -1,7 +1,8 @@
-
-CREATE TABLE IF NOT EXISTS symbols (
+DROP TABLE IF EXISTS symbols cascade;
+CREATE TABLE symbols (
     symbol TEXT PRIMARY KEY,
-    last_price NUMERIC
+    last_price NUMERIC,
+    last_price_at TIMESTAMPTZ
 );
 
 CREATE TABLE ticks (
@@ -12,6 +13,23 @@ CREATE TABLE ticks (
 );
 
 SELECT create_hypertable('ticks', by_range('time', INTERVAL '1 day'));
+
+CREATE OR REPLACE FUNCTION update_last_price()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE symbols
+    SET last_price = NEW.price,
+    last_price_at = NEW.time
+    WHERE symbol = NEW.symbol;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE TRIGGER update_last_price_trigger
+AFTER INSERT ON ticks
+FOR EACH ROW EXECUTE FUNCTION update_last_price();
+
 
 --enable compression
 ALTER TABLE ticks SET (timescaledb.compress,

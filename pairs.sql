@@ -3,28 +3,6 @@ CREATE TABLE tracked_pairs (
     symbol_pair TEXT PRIMARY KEY
 );
 
-DROP TABLE IF EXISTS symbols cascade;
-CREATE TABLE symbols (
-    symbol TEXT PRIMARY KEY,
-    last_price NUMERIC,
-    last_price_at TIMESTAMPTZ
-);
-
-CREATE OR REPLACE FUNCTION update_last_price()
-RETURNS TRIGGER AS $$
-BEGIN
-    UPDATE symbols
-    SET last_price = NEW.price,
-    last_price_at = NEW.time
-    WHERE symbol = NEW.symbol;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER update_last_price_trigger
-AFTER INSERT ON ticks
-FOR EACH ROW EXECUTE FUNCTION update_last_price();
-
 CREATE OR REPLACE FUNCTION insert_pair_ticks()
 RETURNS TRIGGER AS $$
 DECLARE
