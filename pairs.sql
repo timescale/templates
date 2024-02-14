@@ -1,3 +1,4 @@
+-- Depends on track_last_symbol_price.sql
 
 CREATE TABLE tracked_pairs (
     symbol_pair TEXT PRIMARY KEY

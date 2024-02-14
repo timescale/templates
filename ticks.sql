@@ -1,39 +1,17 @@
-DROP TABLE IF EXISTS symbols cascade;
-CREATE TABLE symbols (
-    symbol TEXT PRIMARY KEY,
-    last_price NUMERIC,
-    last_price_at TIMESTAMPTZ
-);
 
-DROP MATERIALIZED VIEW IF EXISTS ohlcv_1d cascade;
-DROP MATERIALIZED VIEW IF EXISTS ohlcv_1h cascade;
-DROP MATERIALIZED VIEW IF EXISTS ohlcv_1m cascade;
+DROP MATERIALIZED VIEW IF EXISTS _ohlcv_1d cascade;
+DROP MATERIALIZED VIEW IF EXISTS _ohlcv_1h cascade;
+DROP MATERIALIZED VIEW IF EXISTS _ohlcv_1m cascade;
 DROP TABLE IF EXISTS ticks CASCADE;
 
 CREATE TABLE IF NOT EXISTS ticks (
     time TIMESTAMPTZ NOT NULL,
-    symbol TEXT NOT NULL REFERENCES symbols(symbol),
+    symbol TEXT NOT NULL,
     price NUMERIC,
     volume NUMERIC
 );
 
 SELECT create_hypertable('ticks', by_range('time', INTERVAL '1 day'), if_not_exists => true);
-
-CREATE OR REPLACE FUNCTION update_last_price()
-RETURNS TRIGGER AS $$
-BEGIN
-    UPDATE symbols
-    SET last_price = NEW.price,
-    last_price_at = NEW.time
-    WHERE symbol = NEW.symbol;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-
-CREATE TRIGGER update_last_price_trigger
-AFTER INSERT ON ticks
-FOR EACH ROW EXECUTE FUNCTION update_last_price();
 
 
 --enable compression
@@ -46,7 +24,7 @@ ALTER TABLE ticks SET (timescaledb.compress,
 SELECT add_compression_policy('ticks ', INTERVAL '1 week');
 
 
-CREATE MATERIALIZED VIEW ohlcv_1m
+CREATE MATERIALIZED VIEW _ohlcv_1m
 WITH (timescaledb.continuous) AS
 SELECT time_bucket('1m', time) AS bucket,
        symbol,
@@ -54,33 +32,57 @@ SELECT time_bucket('1m', time) AS bucket,
 FROM ticks
 GROUP BY 1, 2 WITH NO DATA;
 
-CREATE MATERIALIZED VIEW ohlcv_1h
+CREATE MATERIALIZED VIEW _ohlcv_1h
 WITH (timescaledb.continuous) AS
 SELECT time_bucket('1h', bucket) AS bucket,
        symbol,
        rollup(candlestick) as candlestick
-FROM ohlcv_1m
+FROM _ohlcv_1m
 GROUP BY 1, 2 WITH NO DATA;
 
-CREATE MATERIALIZED VIEW ohlcv_1d
+CREATE VIEW ohlcv_1h AS
+  SELECT bucket,
+    symbol,
+    open(candlestick),
+    high(candlestick),
+    low(candlestick),
+    close(candlestick),
+    volume(candlestick),
+    vwap(candlestick)
+FROM _ohlcv_1h;
+
+CREATE MATERIALIZED VIEW _ohlcv_1d
 WITH (timescaledb.continuous) AS
 SELECT time_bucket('1d', bucket) AS bucket,
        symbol,
        rollup(candlestick) as candlestick
-FROM ohlcv_1h
+FROM _ohlcv_1h
 GROUP BY 1, 2 WITH NO DATA;
+
+CREATE VIEW ohlc_1d AS
+  SELECT bucket,
+    symbol,
+    open(candlestick),
+    high(candlestick),
+    low(candlestick),
+    close(candlestick),
+    volume(candlestick),
+    vwap(candlestick)
+FROM _ohlcv_1d ;
+
 
 CREATE OR REPLACE PROCEDURE refresh_all_caggs(job_id int, config jsonb)
 LANGUAGE PLPGSQL AS $$
 BEGIN
-  CALL refresh_continuous_aggregate('ohlcv_1m', NULL, NULL);
+  CALL refresh_continuous_aggregate('_ohlcv_1m', NULL, NULL);
   COMMIT;
-  CALL refresh_continuous_aggregate('ohlcv_1h', NULL, NULL);
+  CALL refresh_continuous_aggregate('_ohlcv_1h', NULL, NULL);
   COMMIT;
-  CALL refresh_continuous_aggregate('ohlcv_1d', NULL, NULL);
+  CALL refresh_continuous_aggregate('_ohlcv_1d', NULL, NULL);
   COMMIT;
 END;
 $$;
 
-SELECT add_job('refresh_all_caggs', '5 sec');
+SELECT add_job('refresh_all_caggs', '1 sec');
+
 

@@ -13,13 +13,8 @@ Timescaledb for processing finance data.
 * [x] Track pairs of symbols and generate new ticks correlating their last
     prices.
 * [x] Automated example testing the schema and functions.
-
-* [ ] Add background job to emulate ticks.
-* [ ] Add hooks to allow to subscribe to candlesticks `on_new_candlestick`.
-* [ ] Add convenience views to fetch ohlcv from candlestick_aggs.
-* [ ] Add functions covering basic finance indicators like bollinger bands.
-* [ ] Convert the repository to a plain postgresql extension.
-
+* [x] Add background job to emulate ticks.
+* [x] Add convenience views to fetch ohlcv from candlestick_aggs.
 
 ## Files
 
@@ -27,11 +22,12 @@ You can check the [main.sql](./main.sql) file which simply load all files in the
 order:
 
 * [ticks.sql](./ticks.sql) setup the `ticks` hypertable with compression settings
- and add continuous aggregates to track `ohlcv_1m` and `ohlcv_1h`. Track
+ and add continuous aggregates and utility view to track `ohlcv_1m` and `ohlcv_1h`.
+ Check more on [ticks][#Ticks].
+* [track_last_symbol_price](./track_last_symbol_price.sql) will track `last`
  `last_price` on `symbols` table too.
 * [pairs.sql](./pairs.sql) allows you to `track_pairs` of trades and pipe it
     `ticks` back to `ticks` table.
-* [pairs_test.sql](./pairs_test.sql) is an example feeding data.
 * [cleanup.sql](./cleanup.sql) will remove all structures from the DB.
 
 
