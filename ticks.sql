@@ -1,7 +1,7 @@
-
 DROP MATERIALIZED VIEW IF EXISTS _ohlcv_1d cascade;
 DROP MATERIALIZED VIEW IF EXISTS _ohlcv_1h cascade;
 DROP MATERIALIZED VIEW IF EXISTS _ohlcv_1m cascade;
+
 DROP TABLE IF EXISTS ticks CASCADE;
 
 CREATE TABLE IF NOT EXISTS ticks (
@@ -32,6 +32,17 @@ SELECT time_bucket('1m', time) AS bucket,
 FROM ticks
 GROUP BY 1, 2 WITH NO DATA;
 
+CREATE VIEW ohlcv_1m AS
+  SELECT bucket,
+    symbol,
+    open(candlestick),
+    high(candlestick),
+    low(candlestick),
+    close(candlestick),
+    volume(candlestick),
+    vwap(candlestick)
+FROM _ohlcv_1m ;
+
 CREATE MATERIALIZED VIEW _ohlcv_1h
 WITH (timescaledb.continuous) AS
 SELECT time_bucket('1h', bucket) AS bucket,
@@ -59,7 +70,7 @@ SELECT time_bucket('1d', bucket) AS bucket,
 FROM _ohlcv_1h
 GROUP BY 1, 2 WITH NO DATA;
 
-CREATE VIEW ohlc_1d AS
+CREATE VIEW ohlcv_1d AS
   SELECT bucket,
     symbol,
     open(candlestick),

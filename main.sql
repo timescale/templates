@@ -14,7 +14,7 @@
 \i pairs_test.sql
 
 -- Simulate ticks
-\i simulate_ticks.sql
+\i data-simulator.sql
 
 -- Watch ohlcv data from multiple frames
 \i watch_ohlcv.sql
