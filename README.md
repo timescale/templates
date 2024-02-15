@@ -1,7 +1,3 @@
-Here's a suggested README for the TimescaleDB Finance repository, incorporating your recommendations:
-
----
-
 # TimescaleDB Finance
 
 Welcome to the TimescaleDB Finance repository! This project is dedicated to providing tools and workflows for effectively processing financial data using TimescaleDB.
