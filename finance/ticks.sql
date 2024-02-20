@@ -7,14 +7,16 @@ DROP TABLE IF EXISTS ticks CASCADE;
 CREATE TABLE IF NOT EXISTS ticks (
     time TIMESTAMPTZ NOT NULL,
     symbol TEXT NOT NULL,
-    price NUMERIC,
-    volume NUMERIC
+    price NUMERIC NOT NULL,
+    volume NUMERIC NOT NULL
 );
 
-SELECT create_hypertable('ticks', by_range('time', INTERVAL '1 day'), if_not_exists => true);
+SELECT create_hypertable('ticks',
+  by_range('time', INTERVAL '1 day'));
 
 
 --enable compression
+
 ALTER TABLE ticks SET (timescaledb.compress,
     timescaledb.compress_segmentby = 'symbol',
     timescaledb.compress_orderby = 'time',

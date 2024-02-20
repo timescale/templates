@@ -1,6 +1,13 @@
-# TimescaleDB Finance
+# Timescale Templates
 
-Welcome to the TimescaleDB Finance repository! This project is dedicated to providing tools and workflows for effectively processing financial data using TimescaleDB.
+This project is a Wor kin progress
+This project is dedicated to providing tools and workflows for effectively
+start with Timescale without being too worried about the initial configs.
+
+The idea is just make a first opinionated version based on experts in our
+community.
+
+This is a work in progress and we're starting with processing financial data using TimescaleDB.
 
 ## What is TimescaleDB?
 
@@ -30,23 +37,10 @@ To use this repository, you need to have TimescaleDB installed. If you haven't a
 
 ### Setup and Usage
 
-Once TimescaleDB is installed, follow these steps to set up and use the repository:
-1. Clone this repository to your local environment.
-2. Run the provided SQL files in your TimescaleDB instance to set up the database schema.
+This is a main repository with folders that contains different scenarios. The
+setup and usage is inside each folder. For now we have:
 
-The [main.sql](./main.sql)  load all features in the order, or you can choose to load:
-
-* [ticks.sql](./ticks.sql) setup the `ticks` hypertable with compression settings
- and add continuous aggregates and utility view to track `ohlcv_1m` and `ohlcv_1h`.
-
-* [track_last_symbol_price](./track_last_symbol_price.sql) will track `last`
- `last_price` on `symbols` table too.
-
-* [pairs.sql](./pairs.sql) allows you to `track_pairs` of trades and pipe it
-    `ticks` back to `ticks` table.
-
-* [cleanup.sql](./cleanup.sql) will remove all structures from the DB.
-
+* [finance](./finance/README.md) for finance market data processing.
 
 ## Contributing
 
@@ -56,10 +50,10 @@ Your contributions are welcome! Feel free to fork this repository, make changes,
 
 For feedback and support, please join our [Slack community](https://www.timescale.com/community/). Your input helps us improve and expand this project.
 
-## Join us to learn about this project
+## Join us to build the finance discussions
 
-This project is a Work In Progress and should be validated by the community
-to be production-ready.
+This project is a Work In Progress and should be validated by the
+[finance](./finance/) community to be production-ready.
 
 We'll meet and have discussions [weekly on Thursdays, at 14:00 UTC][ical].
 
@@ -81,6 +75,11 @@ Or join directly from the zoom link:
 https://timescale.zoom.us/j/93556278414?pwd=cmllSnhqb1NSdld2OG1GRDhkaGZUQT09
 
 Meeting ID: 935 5627 8414 Passcode: timescale 
+
+
+If you need any extra detail, feel free to reach out `jonatas@timescale.com` or
+or join our [timescaledb Slack](https://timescaledb.slack.com/).
+
 
 
 [ical]: https://timescale.zoom.us/webinar/tJcocu-qqTMuG9CfVhEQueFx0mcqY1pb8eNl/ics?icsToken=98tyKuCrqz4sGNOdtBiDRowqGY_4M-rwtlxbjfp-mintJhFGZyXuZu9BI4suANqI
