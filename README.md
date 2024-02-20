@@ -13,13 +13,7 @@ This is a work in progress and we're starting with processing financial data usi
 
 TimescaleDB is an open-source database designed to make SQL scalable for time-series data. It's optimized for fast ingest and complex queries, making it ideal for finance, IoT, DevOps, and other time-series data applications.
 
-## Features
 
-This repository provides:
-
-- A `ticks` hypertable for efficient storage and querying of tick data.
-- Continuous aggregates for generating candlesticks.
-- Utilities for tracking symbol pairs and last prices.
 
 ## Common Use Cases
 
@@ -40,7 +34,12 @@ To use this repository, you need to have TimescaleDB installed. If you haven't a
 This is a main repository with folders that contains different scenarios. The
 setup and usage is inside each folder. For now we have:
 
-* [finance](./finance/README.md) for finance market data processing.
+The [finance](./finance/README.md) setup your market data processing with:
+
+- A `ticks` hypertable for efficient storage and querying of tick data.
+- Continuous aggregates for generating candlesticks.
+- Compression and retention policies.
+- Utilities for tracking symbol pairs and last prices.
 
 ## Contributing
 
