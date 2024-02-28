@@ -27,7 +27,7 @@ SELECT add_compression_policy('ticks ', INTERVAL '1 week');
 
 
 CREATE MATERIALIZED VIEW _ohlcv_1m
-WITH (timescaledb.continuous) AS
+WITH (timescaledb.continuous, timescaledb.materialized_only=false) AS
 SELECT time_bucket('1m', time) AS bucket,
        symbol,
        candlestick_agg(time, price, volume) AS candlestick
@@ -83,19 +83,23 @@ CREATE VIEW ohlcv_1d AS
     vwap(candlestick)
 FROM _ohlcv_1d ;
 
+SELECT add_continuous_aggregate_policy('_ohlcv_1m',
+  start_offset => INTERVAL '2 min',
+  end_offset => INTERVAL '1 m',
+  schedule_interval => INTERVAL '1 m');
 
-CREATE OR REPLACE PROCEDURE refresh_all_caggs(job_id int, config jsonb)
-LANGUAGE PLPGSQL AS $$
-BEGIN
-  CALL refresh_continuous_aggregate('_ohlcv_1m', NULL, NULL);
-  COMMIT;
-  CALL refresh_continuous_aggregate('_ohlcv_1h', NULL, NULL);
-  COMMIT;
-  CALL refresh_continuous_aggregate('_ohlcv_1d', NULL, NULL);
-  COMMIT;
-END;
-$$;
+SELECT add_continuous_aggregate_policy('_ohlcv_1h',
+  start_offset => INTERVAL '2 hours',
+  end_offset => INTERVAL '1 h',
+  schedule_interval => INTERVAL '1 s');
+
+SELECT add_continuous_aggregate_policy('_ohlcv_1d',
+  start_offset => INTERVAL '36 hours',
+  end_offset => INTERVAL '12 hours',
+  schedule_interval => INTERVAL '1 s');
+
 
 SELECT add_job('refresh_all_caggs', '1 sec');
 
 
+select set_chunk_time_interval('')
