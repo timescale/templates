@@ -29,30 +29,25 @@ For creating a concise, informative README.md in markdown style that guides user
 
 ---
 
-# Finance Segment Setup Guide: Ticks File
+# Finance Setup
 
-This guide provides a step-by-step walkthrough for setting up the finance segment using the TimescaleDB ticks file. The file is designed to manage and analyze financial market data effectively.
+This guide provides a step-by-step walkthrough for setting up the finance segment using the TimescaleDB [ticks.sql](./ticks.sql) file. The file is designed to manage and analyze financial market data effectively.
 
 ## Prerequisites
 
 - PostgreSQL installed
 - TimescaleDB extension enabled in your PostgreSQL database
 
-## Setup Instructions
+## Features
 
-### 1. Cleanup Existing Views and Tables
+The `ticks.sql` file sets up the following features:
 
-First, ensure that any existing materialized views or tables named `_ohlcv_1d`, `_ohlcv_1h`, `_ohlcv_1m`, or `ticks` are dropped to avoid conflicts.
+* storage of time-series data in a hypertable
+* compression settings for efficient storage
+* continuous aggregates for Open-High-Low-Close-Volume (OHLCV) data
+* utility views for easy access to OHLCV data
 
-```sql
-DROP MATERIALIZED VIEW IF EXISTS _ohlcv_1d CASCADE;
-DROP MATERIALIZED VIEW IF EXISTS _ohlcv_1h CASCADE;
-DROP MATERIALIZED VIEW IF EXISTS _ohlcv_1m CASCADE;
-
-DROP TABLE IF EXISTS ticks CASCADE;
-```
-
-### 2. Create the `ticks` Table
+### The `ticks` Table
 
 Create a new table `ticks` to store the time, symbol, price, and volume of trades. This table is defined to handle time-series data efficiently.
 
@@ -65,7 +60,7 @@ CREATE TABLE IF NOT EXISTS ticks (
 );
 ```
 
-### 3. Convert `ticks` Table to a Hypertable
+### Convert `ticks` Table to a Hypertable
 
 Utilize TimescaleDB's functionality to turn the `ticks` table into a hypertable for scalable time-series data storage.
 
@@ -73,7 +68,7 @@ Utilize TimescaleDB's functionality to turn the `ticks` table into a hypertable 
 SELECT create_hypertable('ticks', by_range('time', INTERVAL '1 day'));
 ```
 
-### 4. Enable Compression
+### Enable Compression
 
 Configure compression settings for the `ticks` table to optimize storage and improve query performance.
 
@@ -81,7 +76,7 @@ Configure compression settings for the `ticks` table to optimize storage and imp
 ALTER TABLE ticks SET (timescaledb.compress, timescaledb.compress_segmentby = 'symbol', timescaledb.compress_orderby = 'time', timescaledb.compress_chunk_time_interval = '1 week');
 ```
 
-### 5. Add Compression Policy
+### Add Compression Policy
 
 Apply a compression policy to automatically compress data older than one week.
 
@@ -89,7 +84,7 @@ Apply a compression policy to automatically compress data older than one week.
 SELECT add_compression_policy('ticks', INTERVAL '1 week');
 ```
 
-### 6. Create Materialized Views for OHLCV Data
+### Create Materialized Views for OHLCV Data
 
 Set up materialized views to calculate Open-High-Low-Close-Volume (OHLCV) data at 1-minute, 1-hour, and 1-day intervals using the `candlestick_agg` function.
 
@@ -119,7 +114,7 @@ CREATE MATERIALIZED VIEW _ohlcv_1d
 WITH (timescaledb.continuous) AS ...
 ```
 
-### 7. Create Views for Easy Access
+### Create Views for Easy Access
 
 Generate views on top of the materialized views to simplify access to the calculated OHLCV data.
 
@@ -129,7 +124,13 @@ CREATE VIEW ohlcv_1h AS ...
 CREATE VIEW ohlcv_1d AS ...
 ```
 
-### 8. Schedule Continuous Aggregate Policies
+This views are just wrappers around the materialized views, so you can query them as if they were tables.
+Because the candlesticks are stored as a struct and need special functions to access the data,
+the views are useful to simplify the access.
+
+Note that candlestick_agg is a custom function that aggregates the data into a single row with the open, high, low, close, and volume. You have functions like `high_at`, `low_at`, `open_at`, `close_at` to access inner time series data that are not included in this view.
+
+### Schedule Continuous Aggregate Policies
 
 Automate the refreshing of continuous aggregates to ensure data is up-to-date.
 
@@ -139,7 +140,7 @@ SELECT add_continuous_aggregate_policy('_ohlcv_1h', ...);
 SELECT add_continuous_aggregate_policy('_ohlcv_1d', ...);
 ```
 
-### 9. Refresh All Continuous Aggregates
+### Refresh All Continuous Aggregates
 
 Finally, set up a job to periodically refresh all continuous aggregates.
 
@@ -154,7 +155,10 @@ Following these steps will set up your finance segment using the TimescaleDB tic
 This setup enables efficient handling, compression, and analysis of financial time-series data,
 optimizing for performance and scalability.
 
-If you have any questions or suggestions, feel free to reach out the [TimescaleDB community][community].
+If you have any questions or suggestions, feel free to reach out the
+[TimescaleDB community][community] and join our `#discussion-finance-market-data`
+channel on [Slack](https://timescaledb.slack.com/).
+
 
 [community]: https://timescale.com/community
 
