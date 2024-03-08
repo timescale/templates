@@ -83,6 +83,7 @@ CREATE VIEW ohlcv_1d AS
     vwap(candlestick)
 FROM _ohlcv_1d ;
 
+
 SELECT add_continuous_aggregate_policy('_ohlcv_1m',
   start_offset => INTERVAL '2 min',
   end_offset => INTERVAL '1 m',
@@ -100,6 +101,3 @@ SELECT add_continuous_aggregate_policy('_ohlcv_1d',
 
 
 SELECT add_job('refresh_all_caggs', '1 sec');
-
-
-select set_chunk_time_interval('')
