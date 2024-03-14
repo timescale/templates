@@ -1,3 +1,4 @@
+\timing on
 -- 540k ticks: 900 symbols with 10 ticks per second during 1 minute
 CREATE OR REPLACE FUNCTION add_ticks()  RETURNS VOID LANGUAGE sql AS
 $$
