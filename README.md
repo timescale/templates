@@ -60,6 +60,12 @@ All sessions will be at **2PM UTC**.
 
 Here are the upcoming sessions:
 
+[How to Analyze Financial Data With TimescaleDB | Episode 1: Framework Walkthrough](https://youtu.be/FRuNWDhExPs)
+[How to Analyze Financial Data With TimescaleDB | Episode 2: Hierarchical Continuous Aggregates](https://youtu.be/OC6Ot5M8svs)
+[How to Analyze Financial Data With TimescaleDB | Episode 3: Tracking Last Price](https://youtu.be/ybe_cFDqWRo)
+
+
+
 * Feb 22, 2024 - Walkthrough the framework and why the default choices
 * Feb 29, 2024 - Hierarchical continuous aggregates for candlestick processing
 * March 7, 2024  - Tracking last price and the trigger side effects'
