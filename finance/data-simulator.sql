@@ -28,10 +28,39 @@ BEGIN
     end if;
 
     insert into ticks (time, symbol, price, volume)
-    select now(), symbol, price, (random() * 100)::numeric(10,2);
+    select d, symbol, price, (random() * 100)::numeric(10,2)
+    FROM generate_series(last_time + interval_value, now(), interval_value) d;
+
 END;
 $$
 LANGUAGE plpgsql;
 ;
 
 select add_job('insert_random_ticks', '5 second', '{"interval": "5 second", "symbol": "ETH/USD"}');
+
+
+insert into symbols (symbol, last_price, last_price_at)
+  select 'SYM-'||symbol, random()*80 - 40, now() - INTERVAL '1 hour'
+FROM generate_series(1, 300) AS symbol
+where symbol % 2 = 0;
+
+CREATE OR REPLACE FUNCTION add_ticks()  RETURNS VOID LANGUAGE sql AS
+$$
+  INSERT INTO ticks
+      WITH latest AS materialized (
+        SELECT time FROM ticks ORDER BY time DESC LIMIT 1 
+      )
+      SELECT a.time,
+        'SYM-'||a.symbol,
+        random()*80 - 40 AS price,
+        random()*100 AS volume
+      FROM latest LEFT JOIN lateral (
+        SELECT * FROM generate_series(
+            coalesce(latest.time, null, now()) + INTERVAL '1 second',
+            coalesce(latest.time, null, now()) + INTERVAL '1 hours',
+            INTERVAL '1 second') AS g1(time),
+        generate_series(1, 280) AS g2(symbol)
+      ) a ON true;
+$$;
+
+

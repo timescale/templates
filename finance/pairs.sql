@@ -34,7 +34,7 @@ BEGIN
     IF price1 IS NOT NULL AND price2 IS NOT NULL THEN
         -- Insert the calculated data into pairs table
         INSERT INTO ticks (time, symbol, price, volume)
-        VALUES (NEW.last_price_at, symbol_pair, (price1 / price2)::numeric(10,5), 1);
+        VALUES (NEW.last_price_at, symbol_pair, (price1 / price2)::numeric(20,5), 1);
     END IF;
 
     RETURN NEW;

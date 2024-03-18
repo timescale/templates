@@ -85,8 +85,8 @@ FROM _ohlcv_1d ;
 
 
 SELECT add_continuous_aggregate_policy('_ohlcv_1m',
-  start_offset => INTERVAL '2 min',
-  end_offset => INTERVAL '1 m',
+  start_offset => INTERVAL '3 min',
+  end_offset => INTERVAL '3 min',
   schedule_interval => INTERVAL '1 m');
 
 SELECT add_continuous_aggregate_policy('_ohlcv_1h',
