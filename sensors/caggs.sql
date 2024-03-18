@@ -1,29 +1,36 @@
--- continuous aggregates for average value
-\set value_expr payload->>'temperature'
+-- continuous aggregates for stats_aggs of the value
+\set value_expr ':payload_name'
+\set cagg_1m stats_agg_1m_:hypertable
+\set hcagg_1h stats_agg_1h_:hypertable
+\set hcagg_1d stats_agg_1d_:hypertable
+\set hcagg_1m stats_agg_1M_:hypertable
 
-DO $$
-  DECLARE timeframes TEXT[] = '{"1m", "1h", "1d", "1mon", "1y"}' ;
-  DECLARE count INT;
-  DECLARE last_view regclass;
-  BEGIN
-  FOR count IN 1..array_length(timeframes) LOOP
-    if count == 1 then
-        last_view = :hypertable:cagg_timeframe
-        CREATE MATERIALIZED VIEW :last_view
-        WITH (timescaledb.continuous, timescaledb.materialized_only=false) AS
-            select time_bucket(timeframes[count], time) as bucket,
-            :segment,
-            stats_aggs(:value_expr)
-        FROM :hypertable group by 1, 2;
-    else
-        create view :hypertable_:h_frame
-        WITH (timescaledb.continuous)
-        AS
-        select time_bucket(timeframes[count], bucket) as bucket,
-        :segment,
-        rollup(stats_aggs) as stats_aggs from :last_view group by 1, 2;
-    end if;
-    END LOOP;
- END; 
-$$
 
+CREATE MATERIALIZED VIEW :cagg_1m
+WITH (timescaledb.continuous, timescaledb.materialized_only=true) AS
+   select time_bucket('1m', time) as bucket,
+   :segment,
+   stats_agg(:value_expr)
+FROM :hypertable GROUP BY 1, 2
+WITH NO DATA;
+
+CREATE MATERIALIZED VIEW :hcagg_1h WITH (timescaledb.continuous) AS
+SELECT time_bucket('1h', bucket) as bucket,
+  :segment,
+  rollup(stats_agg) AS stats_agg
+  FROM :cagg_1m GROUP BY 1, 2
+WITH NO DATA;
+
+CREATE MATERIALIZED VIEW :hcagg_1d WITH (timescaledb.continuous) AS
+SELECT time_bucket('1d', bucket) as bucket,
+  :segment,
+  rollup(stats_agg) as stats_agg
+  FROM :hcagg_1h GROUP BY 1, 2
+WITH NO DATA;
+
+CREATE MATERIALIZED VIEW :hcagg_1m WITH (timescaledb.continuous) AS
+SELECT time_bucket('1d', bucket) as bucket,
+  :segment,
+  rollup(stats_agg) as stats_agg
+  FROM :hcagg_1d GROUP BY 1, 2
+WITH NO DATA;
