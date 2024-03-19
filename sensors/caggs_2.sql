@@ -30,7 +30,7 @@ BEGIN
         ELSE
             EXECUTE format($f$
                 CREATE MATERIALIZED VIEW %I
-                WITH (timescaledb.continuous, timescaledb.materialized_only=true) AS
+                WITH (timescaledb.continuous, timescaledb.materialized_only=false) AS
                 SELECT time_bucket('%s', bucket) AS bucket,
                        %I,
                        rollup(stats_agg) AS stats_agg
@@ -47,7 +47,6 @@ BEGIN
     END LOOP;
 END $$ LANGUAGE plpgsql;
 
-select 'Created continuous aggregates for stats_agg of the value' as result;
 call refresh_continuous_aggregate('stats_agg_1m_sample', null, null);
 call refresh_continuous_aggregate('stats_agg_1h_sample', null, null);
 call refresh_continuous_aggregate('stats_agg_1d_sample', null, null);
