@@ -143,6 +143,93 @@ SELECT add_continuous_aggregate_policy('_ohlcv_1h', ...);
 SELECT add_continuous_aggregate_policy('_ohlcv_1d', ...);
 ```
 
+## Downsampling with LTTB for Large Finance Datasets
+
+LTTB is the Largest Triangle Three Buckets algorithm that downsamples a time series
+to a smaller set of points while preserving the visual appearance of the data.
+This can be useful for plotting large datasets or reducing the number of points for faster processing.
+
+```sql
+SELECT symbol, (lttb(time, price, 10)->unnest()).*
+    FROM crypto_ticks
+    WHERE
+      time > now() - interval '1 hour'
+    AND
+      symbol = 'BTC/USD'
+    GROUP BY 1
+    ORDER BY 1 desc;
+```
+
+## Downsample with ASAP Smooth for Large Finance Datasets
+
+ASAP (As Smooth As Possible) is a smoothing algorithm that downsamples a time series.
+The main difference is that it focuses on preserving the shape of the data rather than
+the visual appearance. This can be useful for smoothing out noisy data.
+
+```sql
+select symbol, (asap_smooth(time, price, 10)->unnest()).*
+    from crypto_ticks
+    where
+      time > now() - interval '1 hour'
+    and
+      symbol ~ '^(ETH|BTC)/USD$'
+    group by 1
+    ORDER BY 1 desc;
+```
+
+## Histogram
+
+Histogram allows you to create a histogram of the price data within a given range.
+This can be useful for visualizing the distribution of prices within a specific time frame.
+This example, we're collecting the daily max and min price and creating a histogram with 8 bins.
+
+```sql
+with daily as (
+    select
+      low(candlestick) as min,
+      high(candlestick) as max
+    from ohlc_1day
+    where
+      symbol = 'ETH/USD'
+    and
+      ts > now() - interval '1 day'
+    order by ts desc limit 1
+)
+select count(*), histogram(price, daily.min, daily.max,8)
+from daily, crypto_ticks
+WHERE
+  symbol = 'ETH/USD'
+and
+  time > now() - interval '1 day';
+```
+
+## Percentile Aggregation
+
+Percentile aggregation allows you to calculate the 25th, 50th, 75th, and 99th
+percentiles of the price data within a given time frame.
+
+With the following query, we're calculating the percentiles for the last month of data.
+
+```sql
+WITH one_month AS (
+  SELECT time_bucket('1 day'::interval, time) AS bucket,
+    percentile_agg( price) 
+  FROM crypto_ticks 
+  WHERE symbol = 'BTC/USD'
+    AND time > now() - interval '1 month'
+  GROUP BY 1 ORDER BY 1
+)
+SELECT bucket as x,
+  approx_percentile(0.25, percentile_agg) AS y,
+  approx_percentile(0.5, percentile_agg) AS y_median,
+  approx_percentile(0.75, percentile_agg) AS y_q3,
+  approx_percentile(0.99, percentile_agg) AS y_99
+FROM one_month;
+```
+
+You can also persist the percentile_agg and extract any discrete percentile
+distribution later.
+
 ## Contribute
 
 If you have any ideas that would be widely useful for other folks on finance,
