@@ -2,7 +2,13 @@
 \i cleanup.sql
 
 -- Create tables and functions
-\i ticks.sql
+\i schema.sql
+
+-- Setup continuous aggregates for candlesticks
+\i caggs_candlesticks.sql
+
+-- Create
+\i compression.sql
 
 -- Track last symbol price
 -- \i track_last_symbol_price.sql

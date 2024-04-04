@@ -13,25 +13,28 @@ utilities.
 
 The [main.sql](./main.sql)  load all features in the order, or you can choose to load:
 
-* [ticks.sql](./ticks.sql) setup the `ticks` hypertable with compression settings
+* [schema.sql](./schema.sql) setup the `schema` hypertable with compression settings
  and add continuous aggregates and utility view to track `ohlcv_1m` and `ohlcv_1h`.
+
+* [caggs_candlesticks.sql](./caggs_candlesticks.sql) will create Hierarchical Continuous
+Aggregates with the `candlestick_agg` function to track minute, hourly, dayly and monthly.
 
 * [track_last_symbol_price](./track_last_symbol_price.sql) will track `last`
  `last_price` on `symbols` table too.
 
 * [pairs.sql](./pairs.sql) allows you to `track_pairs` of trades and pipe it
-    `ticks` back to `ticks` table.
+    `schema` back to `schema` table.
 
 * [cleanup.sql](./cleanup.sql) will remove all structures from the DB.
 
 
-For creating a concise, informative README.md in markdown style that guides users through setting up the finance segment focusing on the ticks file, here is a draft:
+For creating a concise, informative README.md in markdown style that guides users through setting up the finance segment focusing on the schema file, here is a draft:
 
 ---
 
 # Finance Setup
 
-This guide provides a step-by-step walkthrough for setting up the finance segment using the TimescaleDB [ticks.sql](./ticks.sql) file. The file is designed to manage and analyze financial market data effectively.
+This guide provides a step-by-step walkthrough for setting up the finance segment using the TimescaleDB [schema.sql](./schema.sql) file. The file is designed to manage and analyze financial market data effectively.
 
 ## Prerequisites
 
@@ -40,19 +43,19 @@ This guide provides a step-by-step walkthrough for setting up the finance segmen
 
 ## Features
 
-The `ticks.sql` file sets up the following features:
+The `schema.sql` file sets up the following features:
 
 * storage of time-series data in a hypertable
 * compression settings for efficient storage
 * continuous aggregates for Open-High-Low-Close-Volume (OHLCV) data
 * utility views for easy access to OHLCV data
 
-### The `ticks` Table
+### The `schema` Table
 
-Create a new table `ticks` to store the time, symbol, price, and volume of trades. This table is defined to handle time-series data efficiently.
+Create a new table `schema` to store the time, symbol, price, and volume of trades. This table is defined to handle time-series data efficiently.
 
 ```sql
-CREATE TABLE IF NOT EXISTS ticks (
+CREATE TABLE IF NOT EXISTS schema (
     time TIMESTAMPTZ NOT NULL,
     symbol TEXT NOT NULL,
     price NUMERIC NOT NULL,
@@ -60,20 +63,20 @@ CREATE TABLE IF NOT EXISTS ticks (
 );
 ```
 
-### Convert `ticks` Table to a Hypertable
+### Convert `schema` Table to a Hypertable
 
-Utilize TimescaleDB's functionality to turn the `ticks` table into a hypertable for scalable time-series data storage.
+Utilize TimescaleDB's functionality to turn the `schema` table into a hypertable for scalable time-series data storage.
 
 ```sql
-SELECT create_hypertable('ticks', by_range('time', INTERVAL '1 day'));
+SELECT create_hypertable('schema', by_range('time', INTERVAL '1 day'));
 ```
 
 ### Enable Compression
 
-Configure compression settings for the `ticks` table to optimize storage and improve query performance.
+Configure compression settings for the `schema` table to optimize storage and improve query performance.
 
 ```sql
-ALTER TABLE ticks SET (timescaledb.compress, timescaledb.compress_segmentby = 'symbol', timescaledb.compress_orderby = 'time', timescaledb.compress_chunk_time_interval = '1 week');
+ALTER TABLE schema SET (timescaledb.compress, timescaledb.compress_segmentby = 'symbol', timescaledb.compress_orderby = 'time', timescaledb.compress_chunk_time_interval = '1 week');
 ```
 
 ### Add Compression Policy
@@ -81,7 +84,7 @@ ALTER TABLE ticks SET (timescaledb.compress, timescaledb.compress_segmentby = 's
 Apply a compression policy to automatically compress data older than one week.
 
 ```sql
-SELECT add_compression_policy('ticks', INTERVAL '1 week');
+SELECT add_compression_policy('schema', INTERVAL '1 week');
 ```
 
 ### Create Materialized Views for OHLCV Data
@@ -96,7 +99,7 @@ WITH (timescaledb.continuous, timescaledb.materialized_only=false) AS
 SELECT time_bucket('1m', time) AS bucket,
        symbol,
        candlestick_agg(time, price, volume) AS candlestick
-FROM ticks
+FROM schema
 GROUP BY 1, 2 WITH NO DATA;
 ```
 
@@ -125,7 +128,7 @@ CREATE VIEW ohlcv_1d AS ...
 ```
 
 This views are just wrappers around the materialized views, so you can query them as if they were tables.
-Because the candlesticks are stored as a struct and need special functions to access the data,
+Because the candlesschema are stored as a struct and need special functions to access the data,
 the views are useful to simplify the access.
 
 Note that candlestick_agg is a custom function that aggregates the data into a single row with the open, high, low, close, and volume. You have functions like `high_at`, `low_at`, `open_at`, `close_at` to access inner time series data that are not included in this view.
@@ -140,20 +143,10 @@ SELECT add_continuous_aggregate_policy('_ohlcv_1h', ...);
 SELECT add_continuous_aggregate_policy('_ohlcv_1d', ...);
 ```
 
-### Refresh All Continuous Aggregates
-
-Finally, set up a job to periodically refresh all continuous aggregates.
-
-```sql
-SELECT add_job('refresh_all_caggs', '1 sec');
-```
-
 ## Contribute
 
-Following these steps will set up your finance segment using the TimescaleDB ticks file.
-
-This setup enables efficient handling, compression, and analysis of financial time-series data,
-optimizing for performance and scalability.
+If you have any ideas that would be widely useful for other folks on finance,
+feel free to contribute to this template by submitting a pull request.
 
 If you have any questions or suggestions, feel free to reach out the
 [TimescaleDB community][community] and join our `#discussion-finance-market-data`

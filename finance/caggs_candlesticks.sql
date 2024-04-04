@@ -1,30 +1,3 @@
-DROP MATERIALIZED VIEW IF EXISTS _ohlcv_1d cascade;
-DROP MATERIALIZED VIEW IF EXISTS _ohlcv_1h cascade;
-DROP MATERIALIZED VIEW IF EXISTS _ohlcv_1m cascade;
-
-DROP TABLE IF EXISTS ticks CASCADE;
-
-CREATE TABLE IF NOT EXISTS ticks (
-    time TIMESTAMPTZ NOT NULL,
-    symbol TEXT NOT NULL,
-    price NUMERIC NOT NULL,
-    volume NUMERIC NOT NULL
-);
-
-SELECT create_hypertable('ticks',
-  by_range('time', INTERVAL '1 day'));
-
-
---enable compression
-
-ALTER TABLE ticks SET (timescaledb.compress,
-    timescaledb.compress_segmentby = 'symbol',
-    timescaledb.compress_orderby = 'time',
-    timescaledb.compress_chunk_time_interval = '1 week');
-
--- add compression
-SELECT add_compression_policy('ticks ', INTERVAL '1 week');
-
 
 CREATE MATERIALIZED VIEW _ohlcv_1m
 WITH (timescaledb.continuous, timescaledb.materialized_only=false) AS
