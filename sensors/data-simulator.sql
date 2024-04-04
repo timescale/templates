@@ -1,3 +1,7 @@
+
+-- INSERT INTO :hypertable (time, :segment, :payload_name)
+-- VALUES (now(), :sample_segment, :sample_payload);
+
 CREATE OR REPLACE FUNCTION add_sample_data() RETURNS VOID LANGUAGE sql AS
 $$
   INSERT INTO sample

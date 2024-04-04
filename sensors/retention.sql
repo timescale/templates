@@ -1,5 +1,5 @@
 
-select add_retention_policy('sample', INTERVAL '6 months');
+select add_retention_policy(:hypertable, INTERVAL :retention_interval);
 
 
 
