@@ -22,7 +22,15 @@ This setup is ideal for anyone working with financial time-series data in Timesc
 
 ### Prerequisites
 
-To use this repository, you need to have TimescaleDB installed. If you haven't already, you can find detailed installation instructions on the [Timescale installation pages](https://docs.timescale.com/latest/getting-started/installation).
+To use this repository, you need to have TimescaleDB installed. If you haven't already,
+you can find detailed installation instructions on the
+[Timescale installation pages](https://docs.timescale.com/latest/getting-started/installation).
+
+Also, to use all the hyperfunctions available, we may also need the
+[timescaledb-toolkit](https://docs.timescale.com/self-hosted/latest/tooling/install-toolkit/)
+functions.
+
+To fastest way to setup both extensions at once on premise is with [timescaledb-ha docker](https://hub.docker.com/r/timescale/timescaledb-ha) image.
 
 ### Setup and Usage
 
