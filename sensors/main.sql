@@ -1,5 +1,5 @@
 
-\i sensors.sql
+\i schema.sql
 \i caggs_dynamic_timeframes.sql
 
 -- \i data-simulator.sql
