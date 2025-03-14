@@ -26,11 +26,17 @@ Aggregates with the `candlestick_agg` function to track minute, hourly, dayly an
     `schema` back to `schema` table.
 
 * [cleanup.sql](./cleanup.sql) will remove all structures from the DB.
+(*)
 
 
-For creating a concise, informative README.md in markdown style that guides users through setting up the finance segment focusing on the schema file, here is a draft:
+Also, not added on [./main.sql](./main.sql), you can add the following extra components:
 
----
+* [swap_fifo.sql](./swap_fifo.sql) provides a solution for tracking and analyzing token swap events with First-In-First-Out (FIFO) accounting.
+* [data-simulator.sql](./data-simulator.sql) provides a function to generate simulated tick data for testing purposes.
+* [watch_ohlcv.sql](./watch_ohlcv.sql) sets up a utility to monitor OHLCV data across multiple time frames.
+* [compression.sql](./compression.sql) configures compression policies for efficient data storage.
+* [pairs_test.sql](./pairs_test.sql) contains test cases for the pairs functionality.
+
 
 # Finance Setup
 
@@ -229,6 +235,241 @@ FROM one_month;
 
 You can also persist the percentile_agg and extract any discrete percentile
 distribution later.
+
+## Swap Analytics with FIFO Accounting
+
+The [swap_fifo.sql](./swap_fifo.sql) file provides a comprehensive solution for tracking and analyzing token swap events with First-In-First-Out (FIFO) accounting. This approach is particularly useful for calculating realized profit and loss (PnL) for cryptocurrency trading.
+
+### The Challenge of FIFO Accounting in Time-Series Data
+
+FIFO accounting requires maintaining state across transactions. Each sale needs to reference previous purchases, potentially going back days, weeks, or even months. This creates a tension with time-series databases that are optimized for time-bounded queries.
+
+### Base Hypertable Structure
+
+The solution starts with a hypertable to store swap events:
+
+```sql
+CREATE TABLE swap_events (
+  id SERIAL,
+  time TIMESTAMPTZ NOT NULL,
+  token_address TEXT NOT NULL,
+  token_in NUMERIC,
+  token_out NUMERIC,
+  usd_in NUMERIC,
+  usd_out NUMERIC,
+  wallet_address TEXT,
+  PRIMARY KEY (id, time)
+);
+
+-- Convert to a TimescaleDB hypertable
+SELECT create_hypertable('swap_events', by_range('time', INTERVAL '1 day'));
+```
+
+### Continuous Aggregates for Simple Metrics
+
+For straightforward metrics that don't require FIFO accounting, continuous aggregates work perfectly:
+
+```sql
+CREATE MATERIALIZED VIEW swap_events_hourly WITH (timescaledb.continuous) AS
+SELECT
+  time_bucket('1 hour', time) AS bucket,
+  wallet_address,
+  token_address,
+  SUM(usd_in) AS total_usd_in,
+  SUM(usd_out) AS total_usd_out,
+  SUM(token_in) AS total_token_in,
+  SUM(token_out) AS total_token_out,
+  COUNT(*) AS swap_count,
+  COUNT(CASE WHEN token_out > 0 THEN 1 END) AS sell_count,
+  COUNT(CASE WHEN token_in > 0 THEN 1 END) AS buy_count
+FROM swap_events
+GROUP BY bucket, wallet_address, token_address;
+```
+
+### FIFO PnL Calculation with a View
+
+For the complex FIFO accounting, the solution uses a view with window functions that maintain the state across transactions:
+
+```sql
+CREATE OR REPLACE VIEW swap_fifo_pnl AS
+WITH token_queue AS (
+  SELECT
+    time,
+    id,
+    token_address,
+    wallet_address,
+    token_in,
+    token_out,
+    usd_in,
+    usd_out,
+    SUM(token_in) OVER (
+      PARTITION BY wallet_address, token_address
+      ORDER BY time, id
+      ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) - SUM(token_out) OVER (
+      PARTITION BY wallet_address, token_address
+      ORDER BY time, id
+      ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) AS token_balance,
+    SUM(token_in) OVER (
+      PARTITION BY wallet_address, token_address
+      ORDER BY time, id
+    ) AS cumulative_token_in,
+    SUM(token_out) OVER (
+      PARTITION BY wallet_address, token_address
+      ORDER BY time, id
+    ) AS cumulative_token_out,
+    SUM(usd_in) OVER (
+      PARTITION BY wallet_address, token_address
+      ORDER BY time, id
+    ) AS cumulative_usd_in
+  FROM swap_events
+),
+fifo_calcs AS (
+  SELECT
+    time,
+    id,
+    token_address,
+    wallet_address,
+    token_in,
+    token_out,
+    usd_in,
+    usd_out,
+    token_balance,
+    cumulative_token_in,
+    cumulative_token_out,
+    cumulative_usd_in,
+    CASE 
+      WHEN token_out > 0 THEN
+        -- Calculate the average cost basis for tokens being sold using FIFO
+        usd_out - (token_out * 
+          (LAG(cumulative_usd_in, 1, 0) OVER (PARTITION BY wallet_address, token_address ORDER BY time, id) / 
+           LAG(cumulative_token_in, 1, 1) OVER (PARTITION BY wallet_address, token_address ORDER BY time, id)))
+      ELSE 0
+    END AS realized_pnl
+  FROM token_queue
+)
+SELECT
+  time,
+  wallet_address,
+  token_address,
+  token_in,
+  token_out,
+  usd_in,
+  usd_out,
+  token_balance,
+  realized_pnl,
+  SUM(realized_pnl) OVER (
+    PARTITION BY wallet_address, token_address
+    ORDER BY time, id
+    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+  ) AS cumulative_pnl
+FROM fifo_calcs;
+```
+
+### Performance Metrics
+
+Using the FIFO PnL view, you can easily calculate performance metrics such as win rate and total profit:
+
+```sql
+SELECT
+  wallet_address,
+  token_address,
+  COUNT(*) AS total_trades,
+  COUNT(CASE WHEN realized_pnl > 0 THEN 1 END) AS winning_trades,
+  ROUND(COUNT(CASE WHEN realized_pnl > 0 THEN 1 END)::numeric / NULLIF(COUNT(*), 0) * 100, 2) AS win_rate,
+  SUM(realized_pnl) AS total_pnl
+FROM swap_fifo_pnl
+WHERE token_out > 0
+GROUP BY wallet_address, token_address;
+```
+
+### Additional Useful Queries
+
+The swap_fifo.sql file includes several additional useful queries:
+
+#### Daily Volume by Token
+
+```sql
+SELECT
+  time_bucket('1 day', time) AS day,
+  token_address,
+  SUM(usd_in) AS buy_volume_usd,
+  SUM(usd_out) AS sell_volume_usd,
+  SUM(usd_in) + SUM(usd_out) AS total_volume_usd,
+  SUM(token_in) AS buy_volume_token,
+  SUM(token_out) AS sell_volume_token
+FROM swap_events
+GROUP BY day, token_address
+ORDER BY day;
+```
+
+#### Average Cost Basis per Wallet and Token
+
+```sql
+SELECT
+  wallet_address,
+  token_address,
+  SUM(usd_in) AS total_cost,
+  SUM(token_in) AS total_tokens_bought,
+  CASE 
+    WHEN SUM(token_in) - SUM(token_out) > 0 THEN 
+      SUM(usd_in) / SUM(token_in)
+    ELSE 0
+  END AS avg_cost_per_token,
+  SUM(token_in) - SUM(token_out) AS current_token_balance
+FROM swap_events
+GROUP BY wallet_address, token_address
+HAVING SUM(token_in) - SUM(token_out) > 0
+ORDER BY wallet_address, token_address;
+```
+
+#### Unrealized PnL
+
+```sql
+WITH last_prices AS (
+  SELECT DISTINCT ON (token_address)
+    token_address,
+    usd_out / token_out AS estimated_current_price
+  FROM swap_events
+  WHERE token_out > 0
+  ORDER BY token_address, time DESC
+)
+SELECT
+  w.wallet_address,
+  w.token_address,
+  w.current_token_balance,
+  w.avg_cost_per_token,
+  p.estimated_current_price,
+  w.current_token_balance * p.estimated_current_price AS estimated_current_value,
+  w.current_token_balance * p.estimated_current_price - (w.current_token_balance * w.avg_cost_per_token) AS unrealized_pnl,
+  ROUND(((p.estimated_current_price / w.avg_cost_per_token) - 1) * 100, 2) AS unrealized_pnl_percent
+FROM (
+  SELECT
+    wallet_address,
+    token_address,
+    SUM(token_in) - SUM(token_out) AS current_token_balance,
+    SUM(usd_in) / SUM(token_in) AS avg_cost_per_token
+  FROM swap_events
+  GROUP BY wallet_address, token_address
+  HAVING SUM(token_in) - SUM(token_out) > 0
+) w
+JOIN last_prices p ON w.token_address = p.token_address;
+```
+
+### Best Practices and Optimization Tips
+
+Even though continuous aggregates can't be used for FIFO calculations, TimescaleDB's architecture still provides significant performance advantages:
+
+1. **Time-Based Partitioning**: Queries benefit from TimescaleDB's time-based chunking, as the database only needs to scan chunks relevant to the query's time range.
+
+2. **Hybrid Approach**: Use continuous aggregates for simple metrics and views for complex calculations.
+
+3. **Materialized Views**: For frequently accessed FIFO calculations, consider creating materialized views that you refresh on a schedule.
+
+4. **Chunking Time Periods**: For large datasets, query the FIFO view with time constraints.
+
+5. **Compression**: Enable compression on older chunks to save space.
 
 ## Contribute
 
