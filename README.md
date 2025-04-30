@@ -1,11 +1,12 @@
 # Timescale Templates
 
-Template to get started with TimescaleDB for financial and IoT time-series data.
+Template to get started with TimescaleDB for financial, IoT, and web traffic time-series data.
 
 Every folder has its own setup and usage:
 
 * [finance](./finance/README.md) folder contains market data processing.
 * [sensors](./sensors/README.md) folder contains IoT data processing.
+* [webtop](./webtop/README.md) folder contains website traffic analysis.
 
 ## What is TimescaleDB?
 
@@ -49,6 +50,29 @@ The [sensors](./sensors/README.md) setup your IoT data processing with:
 - Compression and retention policies.
 - Example of how to use the system with a sample dataset and with data simulator
     functions generating data using background workers.
+
+The [webtop](./webtop/README.md) setup your website traffic analysis with:
+- A containerized solution for analyzing website access patterns.
+- Real-time monitoring dashboard for traffic analysis.
+- Continuous aggregates for efficient querying of traffic data.
+- Job scheduling for data generation and website election processes.
+- Support for different traffic patterns (steady, bursty, growing, declining).
+
+## Quick Start
+
+To get started with any of these templates:
+
+1. Clone this repository
+2. Navigate to the desired template folder (finance, sensors, or webtop)
+3. Follow the setup instructions in the respective README.md file
+
+For example, to start the WebTop project:
+
+```bash
+cd webtop
+./webtop.sh start
+./webtop.sh monitor
+```
 
 ## Contributing
 

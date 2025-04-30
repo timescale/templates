@@ -1,0 +1,29 @@
+services:
+  # TimescaleDB database for storing website traffic data
+  timescaledb:
+    image: timescale/timescaledb-ha:pg17
+    container_name: timescaledb
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: website_tracker
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+      - ./sql:/sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    command: >
+      bash -c "
+        docker-entrypoint.sh postgres &
+        sleep 10
+        until pg_isready -U postgres; do sleep 1; done
+        psql -U postgres -d website_tracker -f /sql/setup/{main,ai-domains}.sql
+      "
+
+volumes:
+  timescaledb_data: 
